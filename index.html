@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>เกมลูกเต๋าเปลี่ยนใบหน้า</title>
+    <style>
+        body {
+            font-family: 'Sarabun', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #f0f0f0;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .game-container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            margin-top: 20px;
+        }
+
+        .cards {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .card {
+            width: 100px;
+            height: 100px;
+            border: 2px solid #ccc;
+            border-radius: 10px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            font-size: 40px;
+            background-color: #fff;
+            transition: transform 0.3s;
+        }
+
+        .card:hover {
+            transform: scale(1.05);
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            background-color: #4CAF50;
+            color: white;
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        .score {
+            font-size: 20px;
+            margin-bottom: 10px;
+        }
+
+        .timer {
+            font-size: 24px;
+            margin-bottom: 20px;
+        }
+
+        .target-face {
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .dice {
+            display: inline-block;
+            padding: 10px;
+            background: linear-gradient(145deg, #ffffff, #e6e6e6);
+            border: 2px solid #ccc;
+            border-radius: 15px;
+            box-shadow: 5px 5px 15px rgba(0, 0, 0, 0.2),
+                       -5px -5px 15px rgba(255, 255, 255, 0.7);
+            transition: transform 0.3s ease;
+        }
+
+        .dice:hover {
+            transform: translateY(-5px);
+        }
+
+        .dice-face {
+            width: 80px;
+            height: 80px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 50px;
+            animation: rollAnimation 1.5s cubic-bezier(0.25, 0.1, 0.25, 1);
+        }
+
+        @keyframes rollAnimation {
+            0% { 
+                transform: rotate(0deg) scale(0.5);
+                opacity: 0.5;
+            }
+            20% { 
+                transform: rotate(180deg) scale(1.2);
+                opacity: 0.7;
+            }
+            40% { 
+                transform: rotate(360deg) scale(0.8);
+                opacity: 0.8;
+            }
+            60% { 
+                transform: rotate(540deg) scale(1.1);
+                opacity: 0.9;
+            }
+            80% { 
+                transform: rotate(720deg) scale(0.9);
+                opacity: 0.95;
+            }
+            100% { 
+                transform: rotate(1080deg) scale(1);
+                opacity: 1;
+            }
+        }
+
+        .game-over {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <h1>เกมลูกเต๋าเปลี่ยนใบหน้า</h1>
+    
+    <div class="game-container">
+        <div class="timer">เวลา: <span id="time">60</span> วินาที</div>
+        <div class="score">คะแนน: <span id="score">0</span></div>
+        <div class="target-face" id="targetFace">
+            <div class="dice">
+                <div class="dice-face"></div>
+            </div>
+        </div>
+        <div class="cards" id="cards"></div>
+        
+        <div class="controls">
+            <button onclick="startGame()">เริ่มเกม</button>
+            <button onclick="rollDice()">ทอยลูกเต๋า</button>
+        </div>
+    </div>
+
+    <div class="game-over" id="gameOver">
+        <h2>จบเกม!</h2>
+        <p>คะแนนสุดท้าย: <span id="finalScore">0</span></p>
+        <button onclick="startGame()">เล่นอีกครั้ง</button>
+    </div>
+
+    <script>
+        const faces = ['😀', '😎', '🤔', '😴', '😍', '🤣', '😱', '🤩', '😇'];
+        let cards = [];
+        let score = 0;
+        let timeLeft = 60;
+        let gameInterval;
+        let targetFace = '';
+
+        function createCards() {
+            const cardsContainer = document.getElementById('cards');
+            cardsContainer.innerHTML = '';
+            cards = [];
+
+            for (let i = 0; i < 9; i++) {
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.onclick = () => checkCard(i);
+                cardsContainer.appendChild(card);
+                cards.push(card);
+            }
+        }
+
+        function shuffleCards() {
+            faces.sort(() => Math.random() - 0.5);
+            cards.forEach((card, index) => {
+                card.textContent = faces[index];
+            });
+        }
+
+        function rollDice() {
+            if (timeLeft <= 0) return;
+            targetFace = faces[Math.floor(Math.random() * faces.length)];
+            const diceFace = document.querySelector('.dice-face');
+            diceFace.style.animation = 'none';
+            diceFace.offsetHeight;
+            diceFace.style.animation = 'rollAnimation 1.5s cubic-bezier(0.25, 0.1, 0.25, 1)';
+            setTimeout(() => {
+                diceFace.textContent = targetFace;
+            }, 750);
+        }
+
+        function checkCard(index) {
+            if (timeLeft <= 0 || !targetFace) return;
+            
+            if (cards[index].textContent === targetFace) {
+                score += 10;
+                document.getElementById('score').textContent = score;
+                shuffleCards();
+                targetFace = '';
+                beepSound(880);  // เสียงตอบถูก
+            } else {
+                score = Math.max(0, score - 5);
+                document.getElementById('score').textContent = score;
+                beepSound(220);  // เสียงตอบผิด
+            }
+        }
+
+        function updateTimer() {
+            timeLeft--;
+            document.getElementById('time').textContent = timeLeft;
+            
+            if (timeLeft <= 0) {
+                clearInterval(gameInterval);
+                endGame();
+            }
+        }
+
+        function startGame() {
+            score = 0;
+            timeLeft = 60;
+            document.getElementById('score').textContent = score;
+            document.getElementById('time').textContent = timeLeft;
+            document.getElementById('gameOver').style.display = 'none';
+            
+            createCards();
+            shuffleCards();
+            targetFace = '';
+            
+            if (gameInterval) {
+                clearInterval(gameInterval);
+            }
+            gameInterval = setInterval(updateTimer, 1000);
+        }
+
+        function endGame() {
+            document.getElementById('gameOver').style.display = 'block';
+            document.getElementById('finalScore').textContent = score;
+        }
+
+        function beepSound(frequency) {
+            try {
+                const context = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = context.createOscillator();
+                const gain = context.createGain();
+                oscillator.connect(gain);
+                gain.connect(context.destination);
+                gain.gain.value = 0.1;
+                oscillator.frequency.value = frequency;
+                oscillator.start(0);
+                setTimeout(() => {
+                    oscillator.stop();
+                    context.close();
+                }, 200);
+            } catch (e) {
+                console.error('Sound error:', e);
+            }
+        }
+
+        // เริ่มต้นเกม
+        createCards();
+        shuffleCards();
+    </script>
+</body>
+</html>
